@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Your Match | Restaurant Recommendation System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .suggestions-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(20, 20, 25, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            list-style: none;
+            padding: 0;
+            margin-top: 5px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .suggestions-list li {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-main);
+            transition: var(--transition-fast);
+        }
+        
+        .suggestions-list li:hover {
+            background: var(--primary);
+            color: var(--secondary);
+            font-weight: 500;
+        }
+
+        .suggestions-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .suggestions-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .suggestions-list::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+        .suggestions-list::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        .loader-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loader-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border-glass);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            color: var(--primary);
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="scrolled">
+        <a href="/" class="nav-brand" style="font-size: 1.2rem;">RESTAURANT <span style="color: white;">RECOMMENDATION SYSTEM</span></a>
+        <button class="nav-toggle" id="navToggle">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="/recommend" class="btn-nav">Explore</a>
+        </div>
+    </nav>
+
+    <div class="recommend-container">
+        <div class="form-glass">
+            <h2>Search <span>Venues</span></h2>
+            <form id="recommendForm" action="/result" method="post">
+                <div class="form-group" style="position: relative;">
+                    <label>Inspiration Restaurant</label>
+                    <input type="text" id="restaurant_name" name="restaurant_name" class="form-control" placeholder="Enter a restaurant you love..." required autocomplete="off">
+                    <ul id="suggestions" class="suggestions-list" style="display: none;"></ul>
+                </div>
+
+                <div class="form-group">
+                    <label>Preferred Cuisine</label>
+                    <select name="cuisine" class="form-control">
+                        <option value="">Any Cuisine</option>
+                        <option value="north indian">North Indian</option>
+                        <option value="south indian">South Indian</option>
+                        <option value="chinese">Chinese</option>
+                        <option value="mughlai">Mughlai</option>
+                        <option value="italian">Italian</option>
+                        <option value="continental">Continental</option>
+                        <option value="fast food">Fast Food</option>
+                        <option value="biryani">Biryani</option>
+                        <option value="thai">Thai</option>
+                        <option value="seafood">Seafood</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Maximum Budget (₹)</label>
+                    <select name="budget" class="form-control">
+                        <option value="9999999">No Limit</option>
+                        <option value="300">Up to ₹300</option>
+                        <option value="500">Up to ₹500</option>
+                        <option value="800">Up to ₹800</option>
+                        <option value="1000">Up to ₹1,000</option>
+                        <option value="1500">Up to ₹1,500</option>
+                        <option value="2000">Up to ₹2,000</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Minimum Rating</label>
+                    <select name="rating" class="form-control">
+                        <option value="0">Any Rating</option>
+                        <option value="3.5">3.5 & Above</option>
+                        <option value="4.0">4.0 & Above</option>
+                        <option value="4.5">4.5 & Above</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 2rem;">
+                    Find Similar <i class="fa-solid fa-sparkles"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <footer style="padding: 4rem 10%; border-top: 1px solid var(--border-glass); text-align: center;">
+        <p style="color: var(--text-muted); font-size: 0.9rem;">&copy; 2026 RESTAURANT RECOMMENDATION SYSTEM. ALL RIGHTS RESERVED. <br> COURSE PROJECT.</p>
+    </footer>
+
+    <!-- Loader Overlay -->
+    <div class="loader-overlay" id="loaderOverlay">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Analyzing Culinary Profiles...</div>
+    </div>
+
+    <script>
+        const navToggle = document.getElementById('navToggle');
+        const navLinks = document.getElementById('navLinks');
+
+        navToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = navToggle.querySelector('i');
+            icon.classList.toggle('fa-bars');
+            icon.classList.toggle('fa-xmark');
+        });
+
+        // Autocomplete Logic
+        const nameInput = document.getElementById('restaurant_name');
+        const suggestionsList = document.getElementById('suggestions');
+        let debounceTimer;
+
+        nameInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const query = e.target.value.trim();
+            
+            if (query.length < 2) {
+                suggestionsList.style.display = 'none';
+                return;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/suggest?q=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+                    
+                    if (data.suggestions && data.suggestions.length > 0) {
+                        suggestionsList.innerHTML = data.suggestions.map(name => {
+                            const safeName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            return `<li onclick="selectSuggestion('${safeName}')">${name}</li>`;
+                        }).join('');
+                        suggestionsList.style.display = 'block';
+                    } else {
+                        suggestionsList.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error("Error fetching suggestions:", error);
+                }
+            }, 300);
+        });
+
+        window.selectSuggestion = function(name) {
+            nameInput.value = name.replace(/&quot;/g, '"');
+            suggestionsList.style.display = 'none';
+        };
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== nameInput && e.target !== suggestionsList) {
+                suggestionsList.style.display = 'none';
+            }
+        });
+
+        // Loader Logic
+        const recommendForm = document.getElementById('recommendForm');
+        const loaderOverlay = document.getElementById('loaderOverlay');
+
+        recommendForm.addEventListener('submit', () => {
+            loaderOverlay.classList.add('active');
+        });
+        
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted || (window.performance && window.performance.navigation && window.performance.navigation.type === 2) || (window.performance && window.performance.getEntriesByType && window.performance.getEntriesByType("navigation").length > 0 && window.performance.getEntriesByType("navigation")[0].type === "back_forward")) {
+                loaderOverlay.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>
